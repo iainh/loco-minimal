@@ -4,9 +4,6 @@ use serde::Serialize;
 pub mod tera_builtins;
 use crate::Result;
 
-#[cfg(feature = "with-db")]
-pub mod pagination;
-
 pub trait ViewRenderer {
     /// Render a view template located by `key`
     ///

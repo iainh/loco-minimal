@@ -9,7 +9,7 @@ use regex::Regex;
 
 use crate::{
     app::{AppContext, Hooks},
-    controller::{middleware::MiddlewareLayer, routes::Routes},
+    controller::routes::Routes,
     Result,
 };
 
@@ -50,10 +50,8 @@ impl AppRoutes {
     /// Create a new instance with the default routes.
     #[must_use]
     pub fn with_default_routes() -> Self {
-        let routes = Self::empty().add_route(super::ping::routes());
-        #[cfg(feature = "with-db")]
-        let routes = routes.add_route(super::health::routes());
-
+        // let routes = Self::empty().add_route(super::ping::routes());
+        let routes = Self::empty();
         routes
     }
 
@@ -143,11 +141,13 @@ impl AppRoutes {
         self
     }
 
-    /// Set a nested prefix for the routes. This prefix will be appended to any existing prefix.
+    /// Set a nested prefix for the routes. This prefix will be appended to any
+    /// existing prefix.
     ///
     /// # Example
     ///
-    /// In the following example, you are adding `api` as a prefix and then nesting `v1` within it:
+    /// In the following example, you are adding `api` as a prefix and then
+    /// nesting `v1` within it:
     ///
     /// ```rust
     /// use loco_rs::controller::AppRoutes;
@@ -172,12 +172,14 @@ impl AppRoutes {
         self
     }
 
-    /// Set a nested route with a prefix. This route will be added with the specified prefix.
-    /// The prefix will only be applied to the routes given in this function.
+    /// Set a nested route with a prefix. This route will be added with the
+    /// specified prefix. The prefix will only be applied to the routes
+    /// given in this function.
     ///
     /// # Example
     ///
-    /// In the following example, you are adding `api` as a prefix and then nesting a route within it:
+    /// In the following example, you are adding `api` as a prefix and then
+    /// nesting a route within it:
     ///
     /// ```rust
     /// use axum::routing::get;
@@ -200,12 +202,14 @@ impl AppRoutes {
         self
     }
 
-    /// Set multiple nested routes with a prefix. These routes will be added with the specified prefix.
-    /// The prefix will only be applied to the routes given in this function.
+    /// Set multiple nested routes with a prefix. These routes will be added
+    /// with the specified prefix. The prefix will only be applied to the
+    /// routes given in this function.
     ///
     /// # Example
     ///
-    /// In the following example, you are adding `api` as a prefix and then nesting multiple routes within it:
+    /// In the following example, you are adding `api` as a prefix and then
+    /// nesting multiple routes within it:
     ///
     /// ```rust
     /// use axum::routing::get;
@@ -264,14 +268,6 @@ impl AppRoutes {
         self
     }
 
-    #[must_use]
-    pub fn middlewares<H: Hooks>(&self, ctx: &AppContext) -> Vec<Box<dyn MiddlewareLayer>> {
-        H::middlewares(ctx)
-            .into_iter()
-            .filter(|m| m.is_enabled())
-            .collect::<Vec<Box<dyn MiddlewareLayer>>>()
-    }
-
     /// Add the routes to an existing Axum Router, and set a list of middlewares
     /// that configure in the [`config::Config`]
     ///
@@ -306,11 +302,6 @@ impl AppRoutes {
             app = app.route(&router.uri, router.method);
         }
 
-        let middlewares = self.middlewares::<H>(&ctx);
-        for mid in middlewares {
-            app = mid.apply(app)?;
-            tracing::info!(name = mid.name(), "+middleware");
-        }
         let router = app.with_state(ctx);
         Ok(router)
     }
@@ -318,13 +309,12 @@ impl AppRoutes {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{prelude::*, tests_cfg};
-    use axum::http::Method;
-    use insta::assert_debug_snapshot;
-    use rstest::rstest;
     use std::vec;
-    use tower::ServiceExt;
+
+    use insta::assert_debug_snapshot;
+
+    use super::*;
+    use crate::prelude::*;
 
     async fn action() -> Result<Response> {
         format::json("loco")
@@ -424,39 +414,5 @@ mod tests {
                 format!("{:?} {}", route.actions, route.uri)
             );
         }
-    }
-
-    #[rstest]
-    #[case(Method::GET, get(action))]
-    #[case(Method::POST, post(action))]
-    #[case(Method::DELETE, delete(action))]
-    #[case(Method::HEAD, head(action))]
-    #[case(Method::OPTIONS, options(action))]
-    #[case(Method::PATCH, patch(action))]
-    #[case(Method::POST, post(action))]
-    #[case(Method::PUT, put(action))]
-    #[case(Method::TRACE, trace(action))]
-    #[tokio::test]
-    async fn can_request_method(
-        #[case] http_method: Method,
-        #[case] method: axum::routing::MethodRouter<AppContext>,
-    ) {
-        let router_without_prefix = Routes::new().add("/loco", method);
-
-        let app_router = AppRoutes::empty().add_route(router_without_prefix);
-
-        let ctx = tests_cfg::app::get_app_context().await;
-        let router = app_router
-            .to_router::<tests_cfg::db::AppHook>(ctx, axum::Router::new())
-            .unwrap();
-
-        let req = axum::http::Request::builder()
-            .uri("/loco")
-            .method(http_method)
-            .body(axum::body::Body::empty())
-            .unwrap();
-
-        let response = router.oneshot(req).await.unwrap();
-        assert!(response.status().is_success());
     }
 }

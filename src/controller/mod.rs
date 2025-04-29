@@ -43,11 +43,11 @@
 //!         AppRoutes::with_default_routes()
 //!             // .add_route(controllers::notes::routes())
 //!     }
-//!     
+//!
 //!     async fn boot(mode: StartMode, environment: &Environment, config: Config) -> Result<BootResult>{
 //!          create_app::<Self, Migrator>(mode, environment, config).await
 //!     }
-//!     
+//!
 //!     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
 //!         Ok(())
 //!     }
@@ -71,7 +71,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use colored::Colorize;
 pub use routes::Routes;
 use serde::Serialize;
 
@@ -82,10 +81,6 @@ mod backtrace;
 mod describe;
 pub mod extractor;
 pub mod format;
-#[cfg(feature = "with-db")]
-mod health;
-pub mod middleware;
-mod ping;
 mod routes;
 pub mod views;
 
@@ -217,7 +212,7 @@ impl IntoResponse for Error {
             }
             Self::CustomError(status_code, data) => (status_code, data),
             Self::WithBacktrace { inner, backtrace } => {
-                println!("\n{}", inner.to_string().red().underline());
+                println!("\n{}", inner.to_string());
                 backtrace::print_backtrace(&backtrace).unwrap();
                 (
                     StatusCode::BAD_REQUEST,

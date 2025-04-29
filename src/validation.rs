@@ -40,8 +40,6 @@
 
 use std::ops::{Deref, DerefMut};
 
-#[cfg(feature = "with-db")]
-use sea_orm::DbErr;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -100,42 +98,6 @@ impl DerefMut for ModelValidationErrors {
     }
 }
 
-#[cfg(feature = "with-db")]
-impl From<ModelValidationErrors> for DbErr {
-    fn from(errors: ModelValidationErrors) -> Self {
-        into_db_error(&errors)
-    }
-}
-
-#[cfg(feature = "with-db")]
-#[must_use]
-pub fn into_db_error(errors: &ModelValidationErrors) -> sea_orm::DbErr {
-    use std::collections::BTreeMap;
-
-    let errors = &errors.0;
-    let error_data: BTreeMap<String, Vec<ModelValidationMessage>> = errors
-        .field_errors()
-        .iter()
-        .map(|(field, field_errors)| {
-            let errors = field_errors
-                .iter()
-                .map(|err| ModelValidationMessage {
-                    code: err.code.to_string(),
-                    message: err.message.as_ref().map(std::string::ToString::to_string),
-                })
-                .collect();
-            ((*field).to_string(), errors)
-        })
-        .collect();
-    let json_errors = serde_json::to_value(error_data);
-    match json_errors {
-        Ok(errors_json) => sea_orm::DbErr::Custom(errors_json.to_string()),
-        Err(err) => sea_orm::DbErr::Custom(format!(
-            "[before_save] could not parse validation errors. err: {err}"
-        )),
-    }
-}
-
 /// Implement `Validatable` for `ActiveModel` when you want it to have a
 /// `validate()` function.
 pub trait Validatable {
@@ -153,7 +115,6 @@ pub trait Validatable {
 #[cfg(test)]
 mod tests {
 
-    use insta::assert_debug_snapshot;
     use rstest::rstest;
     use serde::Deserialize;
     use validator::Validate;
@@ -171,21 +132,5 @@ mod tests {
     #[case("invalid-email", false)]
     fn can_validate_email(#[case] test_name: &str, #[case] expected: bool) {
         assert_eq!(is_valid_email(test_name).is_ok(), expected);
-    }
-
-    #[cfg(feature = "with-db")]
-    #[rstest]
-    #[case("foo")]
-    #[case("foo-bar")]
-    fn can_validate_into_db_error(#[case] name: &str) {
-        let data = TestValidator {
-            name: name.to_string(),
-        };
-
-        assert_debug_snapshot!(
-            format!("struct-[{name}]"),
-            data.validate()
-                .map_err(|e| into_db_error(&ModelValidationErrors(e)))
-        );
     }
 }

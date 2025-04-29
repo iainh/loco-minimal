@@ -10,7 +10,7 @@ use axum::{
 };
 use lettre::{address::AddressError, transport::smtp};
 
-use crate::{controller::ErrorDetail, depcheck};
+use crate::controller::ErrorDetail;
 
 /*
 backtrace principles:
@@ -48,9 +48,6 @@ pub enum Error {
     TaskNotFound(String),
 
     #[error(transparent)]
-    Scheduler(#[from] crate::scheduler::Error),
-
-    #[error(transparent)]
     Axum(#[from] axum::http::Error),
 
     #[error(transparent)]
@@ -82,10 +79,6 @@ pub enum Error {
 
     #[error(transparent)]
     IO(#[from] std::io::Error),
-
-    #[cfg(feature = "with-db")]
-    #[error(transparent)]
-    DB(#[from] sea_orm::DbErr),
 
     #[error(transparent)]
     ParseAddress(#[from] AddressError),
@@ -122,32 +115,8 @@ pub enum Error {
     #[error(transparent)]
     TaskJoinError(#[from] tokio::task::JoinError),
 
-    #[cfg(feature = "with-db")]
-    // Model
-    #[error(transparent)]
-    Model(#[from] crate::model::ModelError),
-
-    #[cfg(feature = "bg_redis")]
-    #[error(transparent)]
-    Redis(#[from] redis::RedisError),
-
-    #[cfg(any(feature = "bg_pg", feature = "bg_sqlt"))]
-    #[error(transparent)]
-    Sqlx(#[from] sqlx::Error),
-
-    #[error(transparent)]
-    Storage(#[from] crate::storage::StorageError),
-
-    #[error(transparent)]
-    Cache(#[from] crate::cache::CacheError),
-
-    #[cfg(debug_assertions)]
-    #[error(transparent)]
-    Generators(#[from] loco_gen::Error),
-
-    #[error(transparent)]
-    VersionCheck(#[from] depcheck::VersionCheckError),
-
+    // #[error(transparent)]
+    // Sqlx(#[from] sqlx::Error),
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
 
